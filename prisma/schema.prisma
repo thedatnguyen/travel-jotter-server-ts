@@ -1,0 +1,212 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model PendingAccount {
+  email          String @id
+  username       String
+  gender         Gender
+  phoneNumber    String
+  firstName      String
+  lastName       String
+  hashedPassword String
+}
+
+model Account {
+  accountId      String         @unique @default(uuid())
+  email          String         @id
+  username       String         @unique
+  gender         Gender
+  phoneNumber    String
+  firstName      String
+  lastName       String
+  hashedPassword String
+  chatAccountId  Int
+  pictureId      String
+  pictureUrl     String
+  Comment        Comment[]
+  Notification   Notification[]
+  Post           Post[]
+  SharedTrip     SharedTrip[]
+  Trip           Trip[]
+  RefreshToken   RefreshToken[]
+}
+
+model RefreshToken {
+  id           String  @id
+  email        String
+  refreshToken String
+  loginAt      BigInt
+  Account      Account @relation(fields: [email], references: [email], onDelete: Cascade)
+}
+
+model SharedTrip {
+  email   String
+  tripId  String
+  role    TripRole
+  Account Account  @relation(fields: [email], references: [email], onDelete: Cascade)
+  Trip    Trip     @relation(fields: [tripId], references: [tripId], onDelete: Cascade)
+
+  @@id([email, tripId])
+}
+
+model Trip {
+  tripId           String         @id @default(uuid())
+  suggest          String?        @db.Text
+  owner            String
+  title            String
+  description      String         @default("")
+  locations        String[]
+  startTime        DateTime
+  endTime          DateTime
+  coverPictureId   String?
+  coverPictureUrl  String?
+  actualBudget     Int            @default(0)
+  expectedBudget   Int            @default(0)
+  lodging          Json           @default("{}")
+  suggestGenerated Boolean        @default(false)
+  SharedTrip       SharedTrip[]
+  TimeSection      TimeSection[]
+  Account          Account        @relation(fields: [owner], references: [email], onDelete: Cascade)
+  TripJournal      TripJournal[]
+  TripPicture      TripPicture[]
+  WishActivity     WishActivity[]
+}
+
+model TripPicture {
+  pictureId  String    @id
+  pictureUrl String
+  tripId     String
+  activityId String?
+  Activity   Activity? @relation(fields: [activityId], references: [activityId], onDelete: Cascade)
+  Trip       Trip      @relation(fields: [tripId], references: [tripId], onDelete: Cascade)
+}
+
+model TimeSection {
+  timeSectionId String     @id @default(uuid())
+  tripId        String
+  startTime     DateTime
+  endTime       DateTime
+  Activity      Activity[]
+  Trip          Trip       @relation(fields: [tripId], references: [tripId], onDelete: Cascade)
+}
+
+model Activity {
+  activityId    String        @id @default(uuid())
+  timeSectionId String
+  title         String
+  note          String        @default("")
+  budget        Int           @default(0)
+  location      String        @default("no location")
+  category      Category      @default(others)
+  order         Int
+  TimeSection   TimeSection   @relation(fields: [timeSectionId], references: [timeSectionId], onDelete: Cascade)
+  Comment       Comment[]
+  TripPicture   TripPicture[]
+}
+
+model WishActivity {
+  tripId         String
+  wishActivityId String   @id @default(uuid())
+  title          String
+  note           String   @default("")
+  budget         Int      @default(0)
+  location       String   @default("no location")
+  category       Category @default(others)
+  dateCreate     DateTime @default(now())
+  Trip           Trip     @relation(fields: [tripId], references: [tripId], onDelete: Cascade)
+}
+
+model Comment {
+  commentId  String   @id @default(uuid())
+  author     String
+  activityId String
+  content    String
+  createAt   DateTime @default(now())
+  published  Boolean  @default(true)
+  Activity   Activity @relation(fields: [activityId], references: [activityId], onDelete: Cascade)
+  Account    Account  @relation(fields: [author], references: [email], onDelete: Cascade)
+}
+
+model Post {
+  postId           String             @id @default(uuid())
+  author           String
+  postType         PostType
+  createAt         DateTime           @default(now())
+  title            String
+  description      String
+  OtherPostPicture OtherPostPicture[]
+  Account          Account            @relation(fields: [author], references: [email], onDelete: Cascade)
+  TripJournal      TripJournal[]
+}
+
+model TripJournal {
+  postId String
+  tripId String
+  Post   Post   @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  Trip   Trip   @relation(fields: [tripId], references: [tripId], onDelete: Cascade)
+
+  @@id([postId, tripId])
+}
+
+model OtherPostPicture {
+  pictureId  String @id
+  postId     String
+  pictureUrl String
+  Post       Post   @relation(fields: [postId], references: [postId], onDelete: Cascade)
+}
+
+model Follow {
+  following String
+  follower  String
+  
+  @@id([follower, following])
+}
+
+model Notification {
+  notificationId String   @id @default(uuid())
+  owner          String
+  title          String
+  content        String
+  createAt       DateTime @default(now())
+  Account        Account  @relation(fields: [owner], references: [email], onDelete: Cascade)
+}
+
+enum Gender {
+  male
+  female
+  not_defined
+}
+
+enum Category {
+  activity
+  flight
+  sightseeing
+  foods_and_drinks
+  cafe
+  sport
+  transportation
+  lodging
+  others
+}
+
+enum PostType {
+  TripJournal
+  OtherPost
+}
+
+enum TripRole {
+  member
+  owner
+}
